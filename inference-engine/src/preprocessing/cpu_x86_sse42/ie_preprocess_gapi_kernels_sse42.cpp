@@ -1297,12 +1297,12 @@ template void calcRowLinear32FC1Impl(sse42_tag, float* dst[], const float* src0[
                                      const float beta[], const Size& inSz, const Size& outSz,
                                      const int lpi, const int l);
 
-template void calcRowAreaImpl(avx2_tag, uint8_t dst[], const uint8_t* src[], const Size& inSz,
+template void calcRowAreaImpl<sse42_tag, uint8_t, Q0_16, short, Q8_8>(sse42_tag, uint8_t dst[], const uint8_t* src[], const Size& inSz,
                               const Size& outSz, Q0_16 yalpha, const MapperUnit8U &ymap,
                               int xmaxdf, const short xindex[], const Q0_16 xalpha[],
                               Q8_8 vbuf[]);
 
-template void calcRowAreaImpl(avx2_tag, float dst[], const float *src[], const Size& inSz,
+template void calcRowAreaImpl<sse42_tag, float, float, int, float>(sse42_tag, float dst[], const float *src[], const Size& inSz,
                               const Size& outSz, float yalpha, const MapperUnit32F& ymap,
                               int xmaxdf, const int xindex[], const float xalpha[],
                               float vbuf[]);

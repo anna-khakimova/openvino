@@ -529,15 +529,15 @@ template void calcRowLinear32FC1Impl(avx2_tag, float* dst[], const float* src0[]
                                      const float beta[], const Size& inSz, const Size& outSz,
                                      const int lpi, const int l);
 
-template void calcRowAreaImpl(avx2_tag, uint8_t dst[], const uint8_t* src[], const Size& inSz,
-                              const Size& outSz, Q0_16 yalpha, const MapperUnit8U &ymap,
-                              int xmaxdf, const short xindex[], const Q0_16 xalpha[],
-                              Q8_8 vbuf[]);
+template void calcRowAreaImpl<avx2_tag, uint8_t, Q0_16, short, Q8_8>(avx2_tag, uint8_t dst[], const uint8_t* src[], const Size& inSz,
+                                                                     const Size& outSz, Q0_16 yalpha, const MapperUnit8U &ymap,
+                                                                     int xmaxdf, const short xindex[], const Q0_16 xalpha[],
+                                                                     Q8_8 vbuf[]);
 
-template void calcRowAreaImpl(avx2_tag, float dst[], const float *src[], const Size& inSz,
-                              const Size& outSz, float yalpha, const MapperUnit32F& ymap,
-                              int xmaxdf, const int xindex[], const float xalpha[],
-                              float vbuf[]);
+template void calcRowAreaImpl<avx2_tag, float, float, int, float>(avx2_tag, float dst[], const float *src[], const Size& inSz,
+                                                                  const Size& outSz, float yalpha, const MapperUnit32F& ymap,
+                                                                  int xmaxdf, const int xindex[], const float xalpha[],
+                                                                  float vbuf[]);
 }  // namespace kernels
 }  // namespace gapi
 }  // namespace InferenceEngine

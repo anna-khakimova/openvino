@@ -1167,8 +1167,8 @@ static void calcAreaRow_CVKL_U8(const cv::gapi::fluid::View   & in,
 
 namespace {
 
-using resizeArea_suptypes = typelist<uint8_t, float>;
-
+//using resizeArea_suptypes = typelist<typelist<uint8_t, uint16_t, short, uint16_t>, typelist<float, float, int, float>>;
+using resizeArea_suptypes = typelist<uint8_t,float>;
 template<typename T, typename A, typename I, typename W>
 inline
 typename std::enable_if<(std::is_same<T, uint8_t>::value&& std::is_same<A, uint16_t>::value) ||
@@ -1216,14 +1216,43 @@ calcRowAreaImpl(scalar_tag,
     }
 }
 
-template<typename isa_tag_t, typename A, typename I, typename W>
+template<typename isa_tag_t/*, typename T, typename A, typename I, typename W*/>
 struct typed_resizeArea {
     using p_f = void (*)(uint8_t dst[], const uint8_t* src[], const Size& inSz, const Size& outSz,
                          Q0_16 yalpha, const MapperUnit8U& ymap, int xmaxdf,
                          const short xindex[], const Q0_16 xalpha[], Q8_8 vbuf[]);
+#if 1
+p_f operator()(type_to_type<float>) {
+    return [](uint8_t dst[], const uint8_t* src[], const Size& inSz, const Size& outSz,
+                Q0_16 yalpha, const MapperUnit8U& ymap, int xmaxdf,
+                const short xindex[], const Q0_16 xalpha[], Q8_8 vbuf[]) {
+            auto outT = reinterpret_cast<float*>(dst);
+            const auto inT = reinterpret_cast<const float**>(src);
 
-    template<typename type>
-    inline p_f operator()(type_to_type<type>) {
+            auto ya = static_cast<float>(yalpha);
+            const auto xa = reinterpret_cast<const float*>(xalpha);
+            const auto ym = reinterpret_cast<const MapperUnit32F&>(ymap);
+            const auto xidx = reinterpret_cast<const int*>(xindex);
+            auto vb = reinterpret_cast<float*>(vbuf);
+
+            calcRowAreaImpl(isa_tag_t{}, outT, inT, inSz, outSz, ya,
+                            ym, xmaxdf, xidx, xa, vb);
+    };
+}
+
+p_f operator()(type_to_type<uint8_t>) {
+    return [](uint8_t dst[], const uint8_t* src[], const Size& inSz, const Size& outSz,
+                Q0_16 yalpha, const MapperUnit8U& ymap, int xmaxdf,
+                const short xindex[], const Q0_16 xalpha[], Q8_8 vbuf[]) {
+            calcRowAreaImpl(isa_tag_t{}, dst, src, inSz, outSz, yalpha,
+                            ymap, xmaxdf, xindex, xalpha, vbuf);
+    };
+}
+#else
+    template<typename type = T>
+    /*inline typename std::enable_if<((std::is_same<type, float>::value&& std::is_same<A, float>::value) ||
+                                   (std::is_same<type, uint8_t>::value && std::is_same<A, uint16_t>::value)), p_f>::type*/
+    p_f operator()(type_to_type<type>) {
         return [](uint8_t dst[], const uint8_t* src[], const Size& inSz, const Size& outSz,
                   Q0_16 yalpha, const MapperUnit8U& ymap, int xmaxdf,
                   const short xindex[], const Q0_16 xalpha[], Q8_8 vbuf[]) {
@@ -1241,7 +1270,7 @@ struct typed_resizeArea {
 #endif
         };
     }
-
+#endif
 };
 }  // namespace
 
@@ -1657,10 +1686,11 @@ GAPI_FLUID_KERNEL(FScalePlanes4, ScalePlanes4, true) {
 #endif
 
 template<typename T, typename A, typename I, typename W, typename Mapper>
-static typename std::enable_if<(std::is_same<T, uint8_t>::value && std::is_same<A, uint16_t>::value) ||
-                               (std::is_same<T, float>::value && std::is_same<A, float>::value), void>::type
+static typename std::enable_if<((std::is_same<T, float>::value&& std::is_same<A, float>::value) ||
+                                (std::is_same<T, uint8_t>::value && std::is_same<A, uint16_t>::value)), void>::type
 calcAreaRow(const cv::gapi::fluid::View& in, cv::gapi::fluid::Buffer& out,
                               cv::gapi::fluid::Buffer& scratch) {
+    //static_assert(std::is_same<T, float>::value && !std::is_same<A, float>::value, "Error Error");
     using Unit = typename Mapper::Unit;
     using alpha_type = typename Mapper::alpha_type;
     using index_type = typename Mapper::index_type;
@@ -1693,10 +1723,10 @@ calcAreaRow(const cv::gapi::fluid::View& in, cv::gapi::fluid::Buffer& out,
 
     const auto rowFunc = type_dispatch<resizeArea_suptypes>(in.meta().depth,
                                                             cv_type_id{},
-                                                            typed_resizeArea<isa_tag_t, A, I, W>{},
+                                                            typed_resizeArea<isa_tag_t>{},
                                                             nullptr);
     GAPI_DbgAssert(rowFunc);
-    
+
     for (int l = 0; l < lpi; l++) {
         Unit ymap = ymapper.map(y + l);
 
@@ -1710,7 +1740,7 @@ calcAreaRow(const cv::gapi::fluid::View& in, cv::gapi::fluid::Buffer& out,
 
         auto dst = out.OutLine<T>(l);
 
-        rowFunc(dst, src, inSz, outSz, ymapper.alpha, ymap, xmaxdf[0], xindex, xalpha, vbuf);        
+        rowFunc(dst, src, inSz, outSz, ymapper.alpha, ymap, xmaxdf[0], xindex, xalpha, vbuf);
     }
 }
 
